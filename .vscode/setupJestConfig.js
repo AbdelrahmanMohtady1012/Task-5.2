@@ -1,7 +1,12 @@
-// One jest run with two environments:
+import fs from 'fs';
+import path from 'path';
+
+const jestConfigPath = path.join(process.cwd(), 'jest.config.cjs');
+
+const jestConfigContent = `// One jest run with two environments:
 //   - "client" tests run in jsdom (they render React components)
 //   - "server" tests run in node (they boot the Express app + in-memory Mongo)
-// `npm test` runs both.
+// \`npm test\` runs both.
 module.exports = {
   projects: [
     {
@@ -10,10 +15,10 @@ module.exports = {
       testMatch: ['<rootDir>/tests/client/**/*.test.{js,jsx}'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup/jest.setup.js'],
       moduleNameMapper: {
-        '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
+        '\\\\.(css|less|scss|sass)$': 'identity-obj-proxy'
       },
       transform: {
-        '^.+\\.(js|jsx)$': 'babel-jest'
+        '^.+\\\\.(js|jsx)$': 'babel-jest'
       }
     },
     {
@@ -21,8 +26,13 @@ module.exports = {
       testEnvironment: 'node',
       testMatch: ['<rootDir>/tests/server/**/*.test.js'],
       transform: {
-        '^.+\\.js$': 'babel-jest'
+        '^.+\\\\.js$': 'babel-jest'
       }
     }
   ]
 };
+`;
+
+if (!fs.existsSync(jestConfigPath)) {
+  fs.writeFileSync(jestConfigPath, jestConfigContent, { encoding: 'utf8' });
+}

@@ -1,11 +1,16 @@
-import { render } from '@testing-library/react';
+import fs from 'fs';
+import path from 'path';
+
+const clientTestPath = path.join(process.cwd(), 'tests', 'client', 'reviewList.test.jsx');
+
+const clientTestContent = `import { render } from '@testing-library/react';
 import ReviewList from '../../client/src/components/ReviewList';
 
 // A review body a malicious user could submit: it tries to run script that
 // reads the JWT out of localStorage (the app stores the token there).
 const XSS_BODY =
   'Nice item! ' +
-  '<img src=x onerror="window.__xssToken = localStorage.getItem(\'token\')">' +
+  '<img src=x onerror="window.__xssToken = localStorage.getItem(\\'token\\')">' +
   '<script>window.__xssRan = true</script>' +
   '<a href="javascript:alert(1)">click me</a>';
 
@@ -43,3 +48,9 @@ describe('ReviewList renders review HTML safely', () => {
     expect(container.textContent).toContain('Nice item!');
   });
 });
+`;
+
+if (!fs.existsSync(clientTestPath)) {
+  fs.mkdirSync(path.dirname(clientTestPath), { recursive: true });
+  fs.writeFileSync(clientTestPath, clientTestContent, { encoding: 'utf8' });
+}

