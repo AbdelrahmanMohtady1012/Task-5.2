@@ -3,6 +3,7 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import Listings from './pages/Listings.jsx'
 import ListingForm from './pages/ListingForm.jsx'
+import ListingReviews from './pages/ListingReviews.jsx'
 import { useAuth } from './hooks/useAuth.js'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/listings" element={<Listings />} />
+        <Route path="/listings/:id/reviews" element={<ListingReviews />} />
         <Route path="/listings/new" element={
           <ProtectedRoute><ListingForm /></ProtectedRoute>
         } />

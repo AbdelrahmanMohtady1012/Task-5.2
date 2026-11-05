@@ -42,12 +42,15 @@ export default function Listings() {
                     {l.category} • {l.condition} • {l.status} • by {l.seller?.name || 'unknown'}
                   </div>
                 </div>
-                {isMine && (
-                  <div className="flex gap-2">
-                    <Link to={`/listings/${l._id}`} className="btn text-sm">Edit</Link>
-                    <button onClick={() => onRemove(l._id)} className="btn text-sm">Remove</button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <Link to={`/listings/${l._id}/reviews`} className="btn text-sm">Reviews</Link>
+                  {isMine && (
+                    <>
+                      <Link to={`/listings/${l._id}`} className="btn text-sm">Edit</Link>
+                      <button onClick={() => onRemove(l._id)} className="btn text-sm">Remove</button>
+                    </>
+                  )}
+                </div>
               </div>
               {l.description && <p className="mt-2 text-sm">{l.description}</p>}
             </div>
