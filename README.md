@@ -1,101 +1,76 @@
-# Task 3 (Variant): Campus Marketplace — with Authentication
+# Task 5 (Variant): Campus Marketplace - With Listing Reviews
 
-Task 1's Campus Marketplace API with JWT login/register on the server and a
-React client with a login flow.
+We will building on top of the campus marketplace variant in task 3. Previously we implemented `JWT` authentication and now a new model and controller have been added. Let us first start with some context.
+## Context
+
+### Injection attacks
+
+An Injection attack vector is a class of security vulnerabilities where the system is susceptible to receiving input from an untrusted user that is part used as part of a Command or a Query for an interpreter. These include, but not limited to, databases, OS Shell, or an XML Parser. The interpreter unwittingly executes the malicious payload as code instead of treating it as plain data. Injection attacks come in multiple formats Such as:
+
+- `SQL Injection`:  Malicious users insert malicious `SQL` statements into data entry fields or login forms to manipulate backend database queries. This can bypass authentication or extract, modify, and delete sensitive records.
+- `OS Command Injection`: Attackers inject operating system commands into vulnerable web applications, forcing the host server to run arbitrary terminal or shell commands with the application's privileges.
+
+The above two are just two examples of many possibilities. For today's task we will be focusing on `Cross-Site Scripting (XSS) Attacks`.
+
+### `Cross-Site Scripting (XSS) Attack`
+
+A `Cross-Site Scripting (XSS)` attack is a subclass of the Injection attacks. It is a security vulnerability that happens when an application takes unsanitized user input and places it directly into a web page that other people's browsers then render. Here the interpreter is the **victim's browser**: if an application fails to validate or neutralize what a user can submit, an attacker can supply `HTML` and `JavaScript` instead of plain text, and the browser executes it as code within the victim's session instead of displaying it as literal text.
+
+XSS commonly comes in three forms:
+
+- `Stored (Persistent) XSS`: the malicious payload is saved on the server (e.g. in the database) and served to every user who views the affected page.
+- `Reflected XSS`: the payload is bounced straight back off a response (e.g. a search term echoed into the page) and runs in the browser of whoever clicks the crafted link.
+- `DOM-based XSS`: client-side JavaScript writes untrusted input into the page, so the payload never needs to reach the server.
+
+For today's task we will be focusing on `Stored XSS`.
+
+#### How it works:
+
+1. **Unsanitized Inputs**: The web application accepts user data (like a comment, a review, or a profile field) and later places it into an HTML page or response without neutralizing it.
+2. **Injecting Markup or Script**: Instead of typing plain text into a field, an attacker submits active markup — a `<script>` tag or, more reliably, an element with an auto-firing event handler such as `<img src=x onerror=...>` or `<svg onload=...>`.
+3. **Altered Execution**: The browser interprets the injected input as markup and code rather than literal text, so the attacker's JavaScript runs in the victim's session — for example reading the login token out of `localStorage` and sending it to the attacker.
 
 ## Running it
 
-```
-npm run install:all   # installs server/ and client/ (npm workspaces)
+```bash
+npm install           # Install concurrently and the dependencies of the projects
+npm run install:all   # For safety
 npm run dev           # API on :4000, client on :5175
 ```
 
-Create `server/.env` yourself with:
+Create the `server/.env` file.
 
-```
+```ini
 PORT=4000
 MONGO_URI=mongodb://tasks:pass1234@ac-j3acrgb-shard-00-00.lueesfz.mongodb.net:27017,ac-j3acrgb-shard-00-01.lueesfz.mongodb.net:27017,ac-j3acrgb-shard-00-02.lueesfz.mongodb.net:27017/?ssl=true&replicaSet=atlas-6to6iy-shard-0&authSource=admin&appName=Cluster0
-JWT_SECRET=change-me
+JWT_SECRET=9eb831018aa7af4da2dddf7397501d2aa5886ad43f3cb6e0a17a0aa6050006cc
 JWT_EXPIRES_IN=7d
 ```
 
-`JWT_SECRET` is the key the server signs and verifies login tokens with —
-anyone who knows it can forge a token for any user, so replace `change-me`
-with a long random value. Generate one with:
-
-```
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Paste the output after `JWT_SECRET=` and restart the server. Changing the
-secret logs everyone out, because tokens signed with the old one stop being
-valid.
-
-## What was added on top of Task 1
+## What was added on top of Task 3
 
 ### Server
-- `POST /api/auth/register`, `POST /api/auth/login` → `{ token, user }`;
-  `GET /api/auth/me` (requires token).
-- `middleware/auth.js` — `requireAuth` reads `Authorization: Bearer <token>`,
-  verifies it with `JWT_SECRET` and sets `req.user = { id, name }`.
-- `User.comparePassword()`; the `password` field stores the bcrypt hash.
-- Listings: reading (`GET /`, `GET /:id`) stays public, and removed listings
-  stay hidden unless `?includeRemoved=true`. Creating, editing and removing
-  require a token. `seller` is set from `req.user.id` (sending it in the body
-  is rejected), and only the seller can edit or remove a listing (`403`
-  otherwise). Removing is still a soft delete (`status: 'removed'`).
-  Listings are populated with the seller's `name`/`email`.
-- Users: `POST /api/users` was removed (use `/api/auth/register`);
-  `PATCH`/`DELETE /api/users/:id` require a token and only work on your own
-  account.
 
-### Client (`client/`, Vite + React + Tailwind)
-- `AuthContext` stores the token in `localStorage`, restores the session via
-  `/auth/me`, and `api.js` attaches the token to every request.
-- Pages: Login, Register, Listings (list, edit/remove on your own listings).
-  ListingForm is left for you — see below.
+- Added a new model called Review with the following attributes: `listing`, `author`, `rating`, `body`. The `body` holds the review text as an **HTML string** (reviewers can use light formatting such as bold and links).
+- Added the Review Controller with the following routes:
+	- `GET /api/reviews?listing=<id>`: This function returns all the reviews for a given listing. Reading reviews is public.
+	- `POST /api/reviews`: This function creates a review for a listing. It requires a logged-in user, and the submitted `body` is stored as-is and later rendered as HTML by the client.
 
-## Your task — the Sell an Item page
+### Client
 
-Everything above is already working. Your job is the frontend of creating a
-listing: `client/src/pages/ListingForm.jsx`. It is already routed at
-`/listings/new` and `/listings/:id`, both behind `ProtectedRoute`, and the
-"Sell an Item" nav link and the "Edit" buttons already point to it.
+- Added the `ReviewList.jsx` component and the `ListingReviews.jsx` page (routed at `/listings/:id/reviews`), plus a "Reviews" link on each listing card.
+- Review bodies pass through a single `lib/sanitize.js` helper before they are handed to React's `dangerouslySetInnerHTML` for rendering.
 
-This is roughly what the finished page should look like when creating a listing (filled in with example values — the status select only appears when editing):
+## Simulating the Attack
 
-![Finished page](docs/sell-an-item.png)
+Unlike the NoSQL Injection task, this attack runs entirely **in the browser — no Postman needed**. Look through the `Flow.md` Markdown file for the detailed steps to simulate the `Stored XSS` attack, see the injected script execute, and watch it read the victim's login token out of `localStorage`. After reading the file Read the next section.
 
-### TODO 1 — the form
-Render inputs bound to the `form` state:
-- `title` — text input (e.g. `Calculus textbook`)
-- `price` — number input, `0` or more (store it as a **number**, not a
-  string)
-- `category` — select: `textbooks`, `electronics`, `furniture`, `clothing`,
-  `other`
-- `condition` — select: `new`, `like-new`, `used`, `worn`
-- `description` — textarea (optional)
-- `status` — select: `active`, `sold` — **only shown when editing**
+## Task
 
-The select values must match these strings exactly — anything else is
-rejected by the server. Implement `onChange` so every input updates `form`.
+Every attack from the `Flow.md` file works because the Reviews feature trusts user input and renders it as **raw HTML** in every viewer's browser. The server (`reviewController.js`) stores the `body` with no sanitation, the client's `lib/sanitize.js` passes it through untouched, and `ReviewList.jsx` injects it with `dangerouslySetInnerHTML` — with no `Content-Security-Policy` to stop injected scripts from running.
 
-### TODO 2 — creating a listing
-In `onSubmit`, send `POST /api/listings` with the form fields using the `api`
-instance from `client/src/api.js` (it already attaches your token). On
-success, navigate back to `/listings`. On failure, show the server's
-`message` in the `error` box — try it: a negative price returns `400`.
+**Fix it.** Make posting and viewing reviews safe while keeping their legitimate formatting, then re-run every attack in this file and confirm each one now fails. Think about: sanitizing vs escaping untrusted HTML, the single place the HTML is rendered (the `dangerouslySetInnerHTML` sink), never trusting user-supplied markup, and constraining what the browser is allowed to execute with a security header.
 
-Do **not** send `seller` — the server takes the seller from your token and
-rejects the request if you send it.
+Your solution should utilize the `DOMPurify` package together with a custom configured `Content-Security-Policy` header via the `helmet` package. You are expected to know the difference between `DOMPurify` (which sanitizes the data/markup on the client before it is rendered) and a `Content-Security-Policy` (a browser-enforced policy sent by the server that restricts what may run), and to think carefully about why layering both — **defense-in-depth** — is stronger than either one alone.
 
-### TODO 3 — editing a listing
-When the URL has an `id`, load the listing with `GET /api/listings/:id` and
-fill the form with its `title`, `price`, `category`, `condition`, `status`
-and `description`. On submit, send `PATCH /api/listings/:id` instead of
-`POST` — this is how a seller marks an item as `sold`. Editing someone
-else's listing returns `403` — show that message too.
-
-You're expected to use AI tools while building this. But you should be able
-to explain, for any line in your component, *why* it's there and what
-happens if you delete it. We will ask.
+> A `jest` test suite ships with this task. From the project root, run `npm install` then `npm test`. The tests encode the secure behavior, so they **fail now** and **pass once your fix is applied** — use them to verify your work.
